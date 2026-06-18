@@ -39,24 +39,24 @@ export function Pagination({ total }: Props) {
         <span className="muted">
           {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}
         </span>
-        <button className="btn btn-ghost btn-sm" disabled={current === 0} onClick={() => go(0)}>
+        <button className="btn btn-sm" disabled={current === 0} onClick={() => go(0)}>
           « First
         </button>
-        <button className="btn btn-ghost btn-sm" disabled={current === 0} onClick={() => go(current - 1)}>
+        <button className="btn btn-sm" disabled={current === 0} onClick={() => go(current - 1)}>
           ‹ Prev
         </button>
         <span className="muted page-indicator">
           Page {current + 1} / {pageCount}
         </span>
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-sm"
           disabled={current >= pageCount - 1}
           onClick={() => go(current + 1)}
         >
           Next ›
         </button>
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-sm"
           disabled={current >= pageCount - 1}
           onClick={() => go(pageCount - 1)}
         >

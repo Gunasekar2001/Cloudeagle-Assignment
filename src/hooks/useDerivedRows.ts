@@ -1,20 +1,26 @@
 import { useMemo } from "react";
 import type { Employee } from "../types";
 import { COLUMNS } from "../data/columns";
-import { filterRows, sortRows } from "../utils/sortFilter";
+import { filterRows, sortRows, searchRows } from "../utils/sortFilter";
 import { useTable } from "../state/TableContext";
 
 /**
- * Compute the filtered + sorted view of the data.
- * Memoised on the inputs that actually affect the result, so typing into an
- * open row editor (which only touches `drafts`) does NOT trigger a re-derive.
+ * Compute the rows actually shown, as a 3-stage pipeline:
+ *
+ *     rows  ──►  global search  ──►  per-column filters  ──►  multi-column sort
+ *
+ * The result is memoised on exactly the inputs that affect it (`rows`,
+ * `search`, `filters`, `sortRules`). Crucially it does NOT depend on `drafts`,
+ * so typing inside an open editor never re-runs this pass over 10k rows — that
+ * is what keeps editing snappy on a large dataset.
  */
 export function useDerivedRows(): Employee[] {
   const { state } = useTable();
-  const { rows, filters, sortRules } = state;
+  const { rows, search, filters, sortRules } = state;
 
   return useMemo(() => {
-    const filtered = filterRows(rows, filters, COLUMNS);
+    const searched = searchRows(rows, search, COLUMNS);
+    const filtered = filterRows(searched, filters, COLUMNS);
     return sortRows(filtered, sortRules);
-  }, [rows, filters, sortRules]);
+  }, [rows, search, filters, sortRules]);
 }

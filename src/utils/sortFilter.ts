@@ -1,6 +1,24 @@
 import type { Employee, Filters, SortRule, ColumnDef } from "../types";
 
 /**
+ * Global search: keep a row if ANY visible column contains the query as a
+ * case-insensitive substring. Empty query is a no-op (returns the input array).
+ * Returns a new array (does not mutate input).
+ */
+export function searchRows(
+  rows: Employee[],
+  query: string,
+  columns: ColumnDef[]
+): Employee[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows;
+  const keys = columns.map((c) => c.key);
+  return rows.filter((row) =>
+    keys.some((k) => String(row[k]).toLowerCase().includes(q))
+  );
+}
+
+/**
  * Multi-column sort. Earlier rules take precedence; ties fall through to the next rule.
  * Returns a new array (does not mutate input).
  */

@@ -5,3 +5,7 @@ dist-ssr
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# build artifacts
+*.tsbuildinfo
+vite.config.ts.timestamp-*
