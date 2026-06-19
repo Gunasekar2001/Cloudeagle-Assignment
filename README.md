@@ -1,5 +1,7 @@
 # Advanced Editable Data Table
 
+Live Link: https://cloudeagle-assignment-guna.netlify.app/
+
 A data-intensive, inline-editable React table built for **10,000+ rows**. It combines inline editing (with per-row save / cancel / undo), **`react-window` virtual scrolling** (plus a pagination fallback), global search, multi-column sorting, per-column filtering, row selection with bulk actions, add/delete rows, column show/hide, light & dark themes, adjustable density, and **five export formats**. The whole app **fits the viewport** — only the table's row region scrolls, never the page.
 
 Built with **React 18 + TypeScript (strict) + Vite**, `react-window` for virtualization, custom CSS, and a Context + reducer state layer.
