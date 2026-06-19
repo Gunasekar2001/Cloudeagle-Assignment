@@ -77,6 +77,11 @@ Or run `npm run build` and drag the resulting `dist/` folder onto the Netlify da
 ### Export (5 formats)
 CSV · JSON · Excel (`.xls`) · **Copy to clipboard** (TSV, paste straight into Sheets/Excel) · **Print / Save as PDF**. Exports respect the current search/filter/sort **and** column visibility, and can be scoped to **selected rows only**.
 
+### Responsive — works on every screen
+- **Desktop / laptop** — columns are **fluid** (`minmax(min, fr)` grid tracks) and expand to fill the viewport, so the whole table fits with **no horizontal scrolling**.
+- **Phones & small tablets (≤ 880px)** — the wide grid is automatically swapped for a **stacked card layout**: each record becomes a tidy card with an identity header, a label/value grid, and the same edit / undo / delete actions. A compact sort + select-all bar replaces the column header. Drops to a single-column card grid under 480px.
+- The same virtual scroller powers both layouts, so performance holds at 10k rows on mobile too.
+
 ### UI / UX
 - **Light & dark themes** and **comfortable / compact density**, both persisted to `localStorage`.
 - **Column show/hide** menu, **row selection** with select-all-in-view (indeterminate state), a **live stats summary bar** (row count, avg salary, total quantity, avg performance, active count), and toast feedback for actions.
@@ -122,7 +127,11 @@ rows ─► global search ─► per-column filters ─► multi-column sort ─
 
 ### Rendering & layout
 
-Columns are **config-driven** (`src/data/columns.ts`): one `ColumnDef` array determines rendering, editing, sorting, filtering and exporting — add an entry and the column appears everywhere. Header, filter and body rows share a single CSS-grid `gridTemplateColumns` string so columns stay aligned, including the leading checkbox column and trailing actions column. Rows are wrapped in `React.memo` so unchanged rows in the virtual window don't re-render on unrelated state changes.
+Columns are **config-driven** (`src/data/columns.ts`): one `ColumnDef` array determines rendering, editing, sorting, filtering and exporting — add an entry and the column appears everywhere. Header, filter and body rows share a single CSS-grid `gridTemplateColumns` string so columns stay aligned, including the leading checkbox column and trailing actions column. The data columns use `minmax(min, weight·fr)` tracks, so on desktop they **expand to fill the viewport** (no horizontal scroll) while still keeping a readable minimum when space is tight. Rows are wrapped in `React.memo` so unchanged rows in the virtual window don't re-render on unrelated state changes.
+
+### Responsive strategy
+
+A `useMediaQuery("(max-width: 880px)")` hook picks the layout. Above the breakpoint, `DataTable` renders the fluid grid (`TableRow` + `TableHead`). Below it, the same virtualized list renders `MobileCard`s instead — each record as a stacked card — with a `MobileControls` bar (sort-by select + select-all) standing in for the column header. Because the swap happens at the render layer, **all state, editing, selection, search, sort and virtualization are shared** between the two layouts; only the per-row presentation and the row height differ.
 
 ### Theming
 
@@ -164,7 +173,8 @@ src/
 - **Custom virtualizer scope** — vertical windowing only; no dynamic measurement, horizontal virtualization, or scroll-to-index.
 - **Excel export** uses the HTML-table-as-`.xls` trick (opens cleanly in Excel/Numbers/LibreOffice). A true `.xlsx` with styles/formulas would require a library such as SheetJS.
 - **Filtering is substring/operator based**, not fuzzy; sorting is locale-aware with numeric handling but has no per-column custom collation.
-- **Horizontal scrollbar placement** — when the viewport is narrower than the table, the body's vertical scrollbar sits at the right edge of the wider content; mouse-wheel vertical scrolling still works everywhere.
+- **Mobile card height is fixed** (so virtualization stays exact); it's sized to fit the edit state, which leaves a little extra whitespace in the read state.
+- **Per-column filter row is desktop-only** — on mobile, filtering is via global search and the sort bar (per-column filters are hidden to save space).
 
 ---
 

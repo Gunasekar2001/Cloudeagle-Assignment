@@ -97,7 +97,7 @@ export function Toolbar({
           </div>
 
           <button
-            className={`btn${showFilters ? " btn-active" : ""}`}
+            className={`btn hide-on-mobile${showFilters ? " btn-active" : ""}`}
             onClick={onToggleFilters}
             title="Toggle per-column filter row"
           >
@@ -121,7 +121,7 @@ export function Toolbar({
 
           {/* Icon-only utility toggles */}
           <button
-            className="icon-btn-lg"
+            className="icon-btn-lg hide-on-mobile"
             title={`Density: ${density} (click to toggle)`}
             aria-label="Toggle row density"
             onClick={onToggleDensity}

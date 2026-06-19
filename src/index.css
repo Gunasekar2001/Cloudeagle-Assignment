@@ -277,8 +277,10 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 .summary-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 
 /* ---------- Table ---------- */
+/* overflow-x is a safety net only; the fluid grid below fills 100% width so
+   desktop never actually scrolls horizontally. */
 .table-h-scroll { overflow-x: auto; }
-.table-content { min-width: 100%; }
+.table-content { width: 100%; }
 
 .thead { position: sticky; top: 0; z-index: 2; }
 .tr { display: grid; align-items: stretch; }
@@ -381,8 +383,65 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 }
 .tbody::-webkit-scrollbar-thumb:hover, .table-h-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 720px) {
-  .summary-item { min-width: 78px; }
-  .search-box { max-width: none; }
+/* ============================================================================
+   MOBILE CARD LAYOUT  (rendered below 880px instead of the wide grid)
+   ============================================================================ */
+.mobile-controls {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 14px; background: var(--surface-2); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 2;
+}
+.mc-selectall { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-soft); }
+.mc-sort { display: flex; align-items: center; gap: 8px; }
+
+.tbody-cards { padding: 10px; }
+.tbody-cards .tbody-spacer { padding: 0; }
+
+.mcard {
+  position: absolute; left: 10px; right: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 13px; box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.mcard.modified { background: var(--row-modified); }
+.mcard.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
+.mcard.editing { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+
+.mcard-head { display: flex; align-items: center; gap: 10px; }
+.mcard-identity { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.mcard-name { font-weight: 700; font-size: 15px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcard-id { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
+.mcard-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; flex: 1;
+}
+.mcard-field { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mcard-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.mcard-value { font-size: 13.5px; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcard .cell-input { padding: 5px 7px; font-size: 13px; }
+
+.mcard-actions { display: flex; gap: 6px; margin-top: auto; }
+.mcard-actions .btn { flex: 1; justify-content: center; }
+.mcard-actions .btn-danger { flex: 0 0 auto; }
+
+/* ---------- Responsive utilities ----------
+   Elements keep their natural display on desktop; the query hides them on
+   mobile (so we don't clobber grid/inline-flex layouts of tagged buttons). */
+@media (max-width: 880px) {
+  .hide-on-mobile { display: none !important; }
+  .app { padding: 18px 12px 32px; }
+  .toolbar-row { padding: 11px 12px; gap: 9px; }
+  .search-box { order: -1; min-width: 100%; flex-basis: 100%; max-width: none; }
+  .summary-bar { gap: 6px; padding: 10px 12px; overflow-x: auto; }
+  .summary-item { min-width: 84px; padding-right: 10px; }
+  .summary-value { font-size: 15px; }
+  .brand-mark { width: 38px; height: 38px; font-size: 20px; }
+  .app-header h1 { font-size: 19px; }
+}
+
+@media (max-width: 480px) {
+  .mcard-grid { grid-template-columns: 1fr; }
+  .toolbar-group { gap: 6px; }
 }

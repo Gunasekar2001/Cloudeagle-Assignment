@@ -3,6 +3,7 @@ import type {
   EditableField,
   Filters,
   SortRule,
+  SortDirection,
   ViewMode,
 } from "../types";
 import { DEPARTMENT_OPTIONS } from "../data/columns";
@@ -64,6 +65,7 @@ export type TableAction =
   | { type: "CLEAR_SELECTION" }
   // --- sorting / filtering / search ---
   | { type: "TOGGLE_SORT"; key: keyof Employee; additive: boolean }
+  | { type: "SET_SINGLE_SORT"; key: keyof Employee | null; direction: SortDirection }
   | { type: "SET_FILTER"; key: keyof Employee; value: string }
   | { type: "CLEAR_FILTERS" }
   | { type: "SET_SEARCH"; value: string }
@@ -273,6 +275,14 @@ export function tableReducer(state: TableState, action: TableAction): TableState
       }
       return { ...state, sortRules, page: 0 };
     }
+
+    // ----- Directly set a single-column sort (used by the mobile sort control) -----
+    case "SET_SINGLE_SORT":
+      return {
+        ...state,
+        sortRules: action.key ? [{ key: action.key, direction: action.direction }] : [],
+        page: 0,
+      };
 
     case "SET_FILTER":
       return { ...state, filters: { ...state.filters, [action.key]: action.value }, page: 0 };
