@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import type { Employee, EditableField, ColumnDef } from "../types";
 import { formatCell } from "../utils/format";
 import { useTable } from "../state/TableContext";
@@ -14,9 +14,8 @@ interface Props {
   /** Visible columns only (respects the column-visibility menu). */
   columns: ColumnDef[];
   gridTemplate: string;
-  rowHeight: number;
-  /** Absolute Y offset inside the virtual spacer (drives windowing). */
-  top: number;
+  /** Positioning/size style — supplied by react-window (virtual) or a fixed height (paginated). */
+  style: CSSProperties;
 }
 
 function TableRowInner({
@@ -27,8 +26,7 @@ function TableRowInner({
   canUndo,
   columns,
   gridTemplate,
-  rowHeight,
-  top,
+  style,
 }: Props) {
   const { dispatch } = useTable();
   const isEditing = draft !== undefined;
@@ -53,7 +51,7 @@ function TableRowInner({
     <div
       role="row"
       className={rowClass}
-      style={{ gridTemplateColumns: gridTemplate, height: rowHeight, top }}
+      style={{ ...style, gridTemplateColumns: gridTemplate }}
       onDoubleClick={() => !isEditing && dispatch({ type: "START_EDIT", id: row.id })}
     >
       {/* Selection checkbox */}

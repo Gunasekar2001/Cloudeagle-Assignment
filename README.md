@@ -1,10 +1,10 @@
 # Advanced Editable Data Table
 
-A data-intensive, inline-editable React table built for **10,000+ rows**. It combines inline editing (with per-row save / cancel / undo), a custom dependency-free virtual scroller (plus a pagination fallback), global search, multi-column sorting, per-column filtering, row selection with bulk actions, add/delete rows, column show/hide, light & dark themes, adjustable density, and **five export formats** — all with **zero runtime UI dependencies** (React only).
+A data-intensive, inline-editable React table built for **10,000+ rows**. It combines inline editing (with per-row save / cancel / undo), **`react-window` virtual scrolling** (plus a pagination fallback), global search, multi-column sorting, per-column filtering, row selection with bulk actions, add/delete rows, column show/hide, light & dark themes, adjustable density, and **five export formats**. The whole app **fits the viewport** — only the table's row region scrolls, never the page.
 
-Built with **React 18 + TypeScript (strict) + Vite**, custom CSS, and a Context + reducer state layer.
+Built with **React 18 + TypeScript (strict) + Vite**, `react-window` for virtualization, custom CSS, and a Context + reducer state layer.
 
-![React](https://img.shields.io/badge/React-18-61dafb) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![deps](https://img.shields.io/badge/runtime%20deps-react%20only-22c55e) ![bundle](https://img.shields.io/badge/JS-~55kB%20gzip-8b5cf6)
+![React](https://img.shields.io/badge/React-18-61dafb) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6) ![virtualization](https://img.shields.io/badge/virtualization-react--window-22c55e) ![bundle](https://img.shields.io/badge/JS-~59kB%20gzip-8b5cf6)
 
 ---
 
@@ -65,7 +65,8 @@ Or run `npm run build` and drag the resulting `dist/` folder onto the Netlify da
 
 ### Large-dataset performance
 - **10,000 rows** by default, deterministically generated (seeded PRNG) so the data is identical on every reload.
-- **Virtual scroll** (default) — a custom windowing hook renders only the rows intersecting the viewport (plus a small overscan). The DOM stays at a few dozen nodes at any dataset size.
+- **Virtual scroll** (default) — powered by **`react-window`** (`FixedSizeList`). Only the rows intersecting the viewport (plus overscan) are mounted, so the DOM stays at a few dozen nodes at any dataset size (10k, 100k…).
+- **Viewport-fit layout** — the app fills `100dvh`; the header, toolbar, summary and pagination are fixed-size while the row region flexes to fill the rest. The list height is measured with a `ResizeObserver` and handed to `react-window`, so **only the rows scroll — the page itself never does.**
 - **Paginated** fallback — selectable page sizes (25 / 50 / 100 / 200) with first/prev/next/last controls.
 
 ### Find, sort & filter
@@ -121,9 +122,9 @@ rows ─► global search ─► per-column filters ─► multi-column sort ─
 
 `derived` is what the table renders, what the summary bar aggregates, and what exports read (intersected with the current selection when "selected only" is chosen).
 
-### Virtualization (custom, ~40 lines)
+### Virtualization (`react-window`)
 
-`useVirtualizer` reads the scroll container's `scrollTop` and, from the fixed row height and viewport height, computes the visible index window `[startIndex, endIndex)` plus overscan. The body renders a full-height spacer (`rowCount × rowHeight`) so the native scrollbar is correct, and each rendered row is absolutely positioned at `index × rowHeight`. The fixed row height (which changes with density) is what makes this math exact. Pagination reuses the same row component — it just renders one page's slice instead of a scroll window. A library like `react-window` or TanStack Virtual could drop into `useVirtualizer.ts` + `DataTable.tsx` if dynamic row heights or scroll-to-index were needed.
+The virtual mode renders rows through `react-window`'s `FixedSizeList`. The list needs an explicit pixel height, so `useElementSize` measures the flex-filling `.table-region` with a `ResizeObserver` and passes that height (and width) to the list — which is what makes the table fill the viewport and keeps the list as the only scroller. `FixedSizeList` hands each visible row a `{ index, style }`; `DataTable.renderRow` applies that `style` (absolute position + height) to the row root, choosing `TableRow` (desktop grid) or `MobileCard` (mobile) based on the breakpoint. A fixed `itemSize` is required — that's why row height is constant per mode (density swaps the desktop value; mobile uses a taller card slot). Pagination reuses the exact same `renderRow`, just over one page's slice in a plain scroll container.
 
 ### Rendering & layout
 
@@ -149,7 +150,8 @@ src/
     TableContext.tsx    # provider + useTable() hook
   hooks/
     useDerivedRows.ts   # memoized search → filter → sort pipeline
-    useVirtualizer.ts   # custom row windowing
+    useElementSize.ts   # ResizeObserver — measures the region for react-window
+    useMediaQuery.ts    # desktop-grid vs mobile-card breakpoint
     useUiPrefs.ts       # theme / density / column visibility (localStorage)
     useUnsavedPrompt.ts # beforeunload guard
     useClickOutside.ts  # dropdown dismissal
@@ -158,8 +160,9 @@ src/
     export.ts           # CSV / JSON / Excel / clipboard / print
     format.ts           # display formatting (currency, numbers)
   components/
-    DataTable.tsx       # orchestrator
+    DataTable.tsx       # orchestrator (react-window list + responsive switch)
     Toolbar.tsx  TableHead.tsx  TableRow.tsx  Pagination.tsx
+    MobileCard.tsx  MobileControls.tsx   # mobile (≤880px) layout
     SummaryBar.tsx  ExportMenu.tsx  ColumnMenu.tsx  Icons.tsx
   App.tsx  main.tsx  index.css  types.ts
 ```
@@ -168,9 +171,8 @@ src/
 
 ## Known limitations
 
-- **Fixed row height** per density — the windowing math assumes a constant row height. Variable-height rows would need measured offsets (or a virtualization library).
+- **Fixed row height** per mode — `react-window`'s `FixedSizeList` requires a constant `itemSize`. Variable-height rows would need `VariableSizeList` (also in `react-window`) with measured offsets.
 - **In-memory only** — "Save" commits to in-memory state; there's no backend, so edits, undo history, selection and the unsaved-guard are session-scoped (a hard reload resets the data, though theme/density/column prefs persist).
-- **Custom virtualizer scope** — vertical windowing only; no dynamic measurement, horizontal virtualization, or scroll-to-index.
 - **Excel export** uses the HTML-table-as-`.xls` trick (opens cleanly in Excel/Numbers/LibreOffice). A true `.xlsx` with styles/formulas would require a library such as SheetJS.
 - **Filtering is substring/operator based**, not fuzzy; sorting is locale-aware with numeric handling but has no per-column custom collation.
 - **Mobile card height is fixed** (so virtualization stays exact); it's sized to fit the edit state, which leaves a little extra whitespace in the read state.

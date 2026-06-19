@@ -11,9 +11,6 @@ interface Props {
   isSelected: boolean;
   canUndo: boolean;
   columns: ColumnDef[];
-  /** Fixed card height — keeps virtual-scroll math exact on mobile. */
-  rowHeight: number;
-  top: number;
 }
 
 /**
@@ -29,8 +26,6 @@ function MobileCardInner({
   isSelected,
   canUndo,
   columns,
-  rowHeight,
-  top,
 }: Props) {
   const { dispatch } = useTable();
   const isEditing = draft !== undefined;
@@ -54,8 +49,9 @@ function MobileCardInner({
     (isSelected ? " selected" : "");
 
   return (
-    // Leave a 12px gap between cards (slot height is `rowHeight`).
-    <div className={cardClass} style={{ height: rowHeight - 12, top }}>
+    // The parent slot (from react-window) is the positioned/sized element;
+    // the card fills it with a small margin to create the gap between cards.
+    <div className={cardClass}>
       <div className="mcard-head">
         <input
           type="checkbox"

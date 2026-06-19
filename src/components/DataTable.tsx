@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import type { Employee } from "../types";
+import { useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
+import { FixedSizeList, type ListChildComponentProps } from "react-window";
 import { COLUMNS } from "../data/columns";
 import { useTable } from "../state/TableContext";
 import { useDerivedRows } from "../hooks/useDerivedRows";
-import { useVirtualizer } from "../hooks/useVirtualizer";
 import { useUnsavedPrompt } from "../hooks/useUnsavedPrompt";
 import { useUiPrefs } from "../hooks/useUiPrefs";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useElementSize } from "../hooks/useElementSize";
 import { TableHead } from "./TableHead";
 import { TableRow } from "./TableRow";
 import { MobileCard } from "./MobileCard";
@@ -16,16 +16,12 @@ import { Pagination } from "./Pagination";
 import { SummaryBar } from "./SummaryBar";
 
 // Row heights. Desktop grid rows switch with density; mobile uses a taller
-// fixed card height that fits both the read and edit states. Each is constant
-// per mode so the virtual-scroll math stays exact.
+// fixed card slot. Each is constant per mode (react-window FixedSizeList needs
+// a fixed item size).
 const GRID_ROW_HEIGHT = { comfortable: 48, compact: 36 } as const;
 const CARD_ROW_HEIGHT = 268;
-const BODY_HEIGHT = 560;
 const CHECK_WIDTH = 44;
 const ACTIONS_WIDTH = 132;
-
-// Below this width the wide grid is replaced by stacked cards (covers phones
-// and small tablets, and avoids the cramped mid-zone where columns wouldn't fit).
 const MOBILE_QUERY = "(max-width: 880px)";
 
 export function DataTable() {
@@ -35,6 +31,9 @@ export function DataTable() {
   const { theme, toggleTheme, density, toggleDensity, hidden, toggleColumn } = useUiPrefs();
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const [showFilters, setShowFilters] = useState(true);
+
+  // Measure the table region so react-window fills exactly the available space.
+  const [regionRef, regionSize] = useElementSize();
 
   // Toast for export / bulk-action feedback.
   const [toast, setToast] = useState<string | null>(null);
@@ -47,21 +46,14 @@ export function DataTable() {
 
   const derived = useDerivedRows();
   const visibleColumns = useMemo(() => COLUMNS.filter((c) => !hidden.has(c.key)), [hidden]);
-
-  // Row height depends on layout mode.
   const rowHeight = isMobile ? CARD_ROW_HEIGHT : GRID_ROW_HEIGHT[density];
 
-  /**
-   * Fluid grid template: the checkbox + actions columns stay fixed, while each
-   * data column becomes `minmax(min, weightFr)`. The `fr` weights let the
-   * columns *expand to fill the viewport* (so there's no horizontal scroll on
-   * desktop), and the `min` floor keeps them readable when space is tight.
-   */
+  // Fluid grid template — fixed checkbox + actions columns, fr-weighted data
+  // columns that expand to fill the width (no horizontal scroll on desktop).
   const gridTemplate = useMemo(() => {
     const tracks = visibleColumns.map((c) => {
       const min = Math.max(64, Math.round(c.width * 0.5));
-      const weight = c.width / 100; // wider columns get a larger share of free space
-      return `minmax(${min}px, ${weight}fr)`;
+      return `minmax(${min}px, ${c.width / 100}fr)`;
     });
     return `${CHECK_WIDTH}px ${tracks.join(" ")} ${ACTIONS_WIDTH}px`;
   }, [visibleColumns]);
@@ -81,23 +73,43 @@ export function DataTable() {
     dispatch({ type: "SET_SELECTION", ids: [...next] });
   }, [allSelected, viewIds, selectedIds, dispatch]);
 
-  const virtual = useVirtualizer({
-    rowCount: derived.length,
-    rowHeight,
-    viewportHeight: BODY_HEIGHT,
-  });
+  // The rows to render in paginated mode (virtual mode lets react-window pick).
+  const pageRows = useMemo(() => {
+    if (viewMode !== "paginated") return [];
+    const start = page * pageSize;
+    return derived.slice(start, start + pageSize);
+  }, [viewMode, page, pageSize, derived]);
 
-  // Decide which rows to render and where to place them, per view mode.
-  const { items, contentHeight } = useMemo(() => {
-    if (viewMode === "paginated") {
-      const start = page * pageSize;
-      const slice = derived.slice(start, start + pageSize);
-      return { items: slice.map((row, i) => ({ row, index: i })), contentHeight: slice.length * rowHeight };
-    }
-    const slice: { row: Employee; index: number }[] = [];
-    for (let i = virtual.startIndex; i < virtual.endIndex; i++) slice.push({ row: derived[i], index: i });
-    return { items: slice, contentHeight: virtual.totalHeight };
-  }, [viewMode, page, pageSize, derived, rowHeight, virtual.startIndex, virtual.endIndex, virtual.totalHeight]);
+  /** Render a single row, given an index and the style react-window provides. */
+  const renderRow = useCallback(
+    (index: number, style: CSSProperties) => {
+      const row = derived[index];
+      if (!row) return null;
+      const common = {
+        row,
+        draft: drafts[row.id],
+        isModified: modifiedIds.has(row.id),
+        isSelected: selectedIds.has(row.id),
+        canUndo: (history[row.id]?.length ?? 0) > 0,
+        columns: visibleColumns,
+      };
+      if (isMobile) {
+        return (
+          <div className="mcard-slot" style={style}>
+            <MobileCard {...common} />
+          </div>
+        );
+      }
+      return <TableRow {...common} gridTemplate={gridTemplate} style={style} />;
+    },
+    [derived, drafts, modifiedIds, selectedIds, history, visibleColumns, isMobile, gridTemplate]
+  );
+
+  // react-window item renderer (virtual mode).
+  const WindowItem = useCallback(
+    ({ index, style }: ListChildComponentProps) => renderRow(index, style),
+    [renderRow]
+  );
 
   return (
     <section className={`card density-${density}${isMobile ? " is-mobile" : ""}`} aria-label="Employees table">
@@ -122,7 +134,6 @@ export function DataTable() {
 
       <SummaryBar rows={derived} />
 
-      {/* Mobile gets a compact sort/select bar in place of the column header. */}
       {isMobile && (
         <MobileControls
           columns={visibleColumns}
@@ -131,63 +142,47 @@ export function DataTable() {
         />
       )}
 
-      <div className="table-h-scroll">
-        <div className="table-content" role="table">
-          {!isMobile && (
-            <TableHead
-              columns={visibleColumns}
-              gridTemplate={gridTemplate}
-              showFilters={showFilters}
-              allSelected={allSelected}
-              someSelected={someSelected}
-              onToggleSelectAll={toggleSelectAll}
-            />
-          )}
+      <div className="table-content" role="table">
+        {!isMobile && (
+          <TableHead
+            columns={visibleColumns}
+            gridTemplate={gridTemplate}
+            showFilters={showFilters}
+            allSelected={allSelected}
+            someSelected={someSelected}
+            onToggleSelectAll={toggleSelectAll}
+          />
+        )}
 
-          <div
-            className={`tbody${isMobile ? " tbody-cards" : ""}`}
-            role="rowgroup"
-            style={{ height: BODY_HEIGHT }}
-            onScroll={viewMode === "virtual" ? virtual.onScroll : undefined}
-          >
-            {derived.length === 0 ? (
-              <div className="empty">
-                <div className="empty-emoji">🔍</div>
-                No rows match your search or filters.
-              </div>
-            ) : (
-              <div className="tbody-spacer" style={{ height: contentHeight }}>
-                {items.map(({ row, index }) =>
-                  isMobile ? (
-                    <MobileCard
-                      key={row.id}
-                      row={row}
-                      draft={drafts[row.id]}
-                      isModified={modifiedIds.has(row.id)}
-                      isSelected={selectedIds.has(row.id)}
-                      canUndo={(history[row.id]?.length ?? 0) > 0}
-                      columns={visibleColumns}
-                      rowHeight={rowHeight}
-                      top={index * rowHeight}
-                    />
-                  ) : (
-                    <TableRow
-                      key={row.id}
-                      row={row}
-                      draft={drafts[row.id]}
-                      isModified={modifiedIds.has(row.id)}
-                      isSelected={selectedIds.has(row.id)}
-                      canUndo={(history[row.id]?.length ?? 0) > 0}
-                      columns={visibleColumns}
-                      gridTemplate={gridTemplate}
-                      rowHeight={rowHeight}
-                      top={index * rowHeight}
-                    />
-                  )
-                )}
-              </div>
-            )}
-          </div>
+        {/* The flex-filling region: only THIS scrolls, never the whole page. */}
+        <div className="table-region" ref={regionRef}>
+          {derived.length === 0 ? (
+            <div className="empty">
+              <div className="empty-emoji">🔍</div>
+              No rows match your search or filters.
+            </div>
+          ) : viewMode === "virtual" ? (
+            regionSize.height > 0 && (
+              <FixedSizeList
+                height={regionSize.height}
+                width={regionSize.width || "100%"}
+                itemCount={derived.length}
+                itemSize={rowHeight}
+                overscanCount={8}
+              >
+                {WindowItem}
+              </FixedSizeList>
+            )
+          ) : (
+            // Paginated: a normal scroll container with the current page's rows.
+            <div className="page-scroll" style={{ height: regionSize.height }}>
+              {pageRows.map((row, i) => (
+                <div key={row.id} className="page-row">
+                  {renderRow(page * pageSize + i, { height: rowHeight })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

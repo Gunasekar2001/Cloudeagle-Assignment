@@ -87,15 +87,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- App shell ---------- */
+/* ---------- App shell ----------
+   The app fills the viewport height and never lets the whole PAGE scroll —
+   header & footer are fixed-size, and the middle (the table) flexes to take the
+   rest. Only the table's row region scrolls internally. */
+html, body, #root { overflow: hidden; }
 .app {
   max-width: 1340px;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 30px 22px 44px;
+  padding: 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  overflow: hidden;
 }
+.app-header, .app-footer { flex: 0 0 auto; }
+.app-main { flex: 1 1 auto; min-height: 0; display: flex; }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand-mark {
   width: 44px; height: 44px;
@@ -116,12 +124,19 @@ kbd {
 
 /* ---------- Card ---------- */
 .card {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
+/* Fixed-size sections of the card. */
+.toolbar, .summary-bar, .mobile-controls, .pagination, .thead { flex: 0 0 auto; }
 
 /* ---------- Toolbar ---------- */
 .toolbar { border-bottom: 1px solid var(--border); }
@@ -276,13 +291,20 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 .summary-value { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 .summary-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 
-/* ---------- Table ---------- */
-/* overflow-x is a safety net only; the fluid grid below fills 100% width so
-   desktop never actually scrolls horizontally. */
-.table-h-scroll { overflow-x: auto; }
-.table-content { width: 100%; }
+/* ---------- Table ----------
+   table-content is a flex column: the header is fixed, the region flexes to
+   fill the card and is the ONLY thing that scrolls. The fluid grid fills 100%
+   width so there's no horizontal scroll on desktop. */
+.table-content {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.table-region { flex: 1 1 auto; min-height: 0; position: relative; }
 
-.thead { position: sticky; top: 0; z-index: 2; }
+.thead { z-index: 2; }
 .tr { display: grid; align-items: stretch; }
 .th-row { background: var(--surface-2); border-bottom: 1px solid var(--border); }
 
@@ -314,20 +336,21 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 }
 .filter-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
 
-/* ---------- Body / rows ---------- */
-.tbody { position: relative; overflow-y: auto; overflow-x: hidden; }
-.tbody-spacer { position: relative; width: 100%; }
+/* ---------- Body / rows ----------
+   In virtual mode react-window owns the scroll container inside .table-region;
+   in paginated mode .page-scroll does. Rows are styled the same either way. */
+.page-scroll { overflow-y: auto; overflow-x: hidden; }
+.page-row { display: block; }
 
-.tbody .tr {
-  position: absolute; left: 0; right: 0;
+.table-region .tr {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   transition: background .1s;
 }
-.tbody .tr:hover { background: var(--row-hover); }
-.tbody .tr.modified { background: var(--row-modified); }
-.tbody .tr.selected { background: var(--row-selected); }
-.tbody .tr.editing { background: var(--row-editing); box-shadow: inset 3px 0 0 var(--accent); }
+.table-region .tr:hover { background: var(--row-hover); }
+.table-region .tr.modified { background: var(--row-modified); }
+.table-region .tr.selected { background: var(--row-selected); }
+.table-region .tr.editing { background: var(--row-editing); box-shadow: inset 3px 0 0 var(--accent); }
 
 .td {
   display: flex; align-items: center; padding: 0 12px;
@@ -394,11 +417,11 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 .mc-selectall { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-soft); }
 .mc-sort { display: flex; align-items: center; gap: 8px; }
 
-.tbody-cards { padding: 10px; }
-.tbody-cards .tbody-spacer { padding: 0; }
-
+/* react-window gives each card a positioned slot; the card fills it with a
+   small inset to create the gap between cards. */
+.mcard-slot { padding: 6px 10px; }
 .mcard {
-  position: absolute; left: 10px; right: 10px;
+  height: 100%;
   display: flex; flex-direction: column; gap: 8px;
   padding: 12px 14px;
   background: var(--surface); border: 1px solid var(--border);
