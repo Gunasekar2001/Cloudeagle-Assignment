@@ -174,3 +174,4 @@ src/
 - **Performance** — drafts isolated from committed data, memoized derivation, windowed rendering, `React.memo` rows.
 - **State & form management** — one centralized reducer with per-row drafts and independent undo stacks.
 - **UI/UX** — original custom design with light/dark themes, density, dropdown menus, selection, stats, toasts, and full keyboard/ARIA support.
+# Cloudeagle-Assignment
